@@ -1,0 +1,73 @@
+parameters:
+  - name: specs
+    type: string
+    default: e2e
+    values:
+      - all
+      - e2e
+      - smoke
+  - name: env
+    type: string
+    default: bvt
+    values:
+      - bvt
+      - uat
+      - prd
+
+jobs:
+  - job: CypressTests
+    pool:
+      vmImage: 'ubuntu-latest'
+    variables:
+      - name: CYPRESS_CACHE_FOLDER
+        value: $(Pipeline.Workspace)/.cypress
+      - ${{ if eq(parameters.specs, 'all') }}:
+          - name: spec
+            value: ''
+      - ${{ if eq(parameters.specs, 'e2e') }}:
+          - name: spec
+            value: --spec '**/e2e/**'
+      - ${{ if eq(parameters.specs, 'smoke') }}:
+          - name: spec
+            value: --spec '**/smoke/**'
+      - ${{ if eq(parameters.env, 'bvt') }}:
+          - name: baseUrl
+            value: 'https://bvt-riskviewpro.landmark.co.uk/'
+          - group: riskviewpro-ui-bvt
+          - group: e2e-bvt
+      - ${{ if eq(parameters.env, 'uat') }}:
+          - name: baseUrl
+            value: 'https://uat-riskviewpro.landmark.co.uk/'
+          - group: riskviewpro-ui-uat
+          - group: e2e-uat
+      - ${{ if eq(parameters.env, 'prd') }}:
+          - name: baseUrl
+            value: 'https://riskviewpro.landmark.co.uk/'
+    steps:
+      - template: ../../shared/templates/node-setup.yaml
+      - task: Cache@2
+        inputs:
+          key: 'v2 | cypress | "$(Agent.OS)" | package-lock.json'
+          path: $(CYPRESS_CACHE_FOLDER)
+        displayName: Cache Cypress binary
+      - script: npx nx run riskviewpro-e2e:e2e --skip-nx-cache --headless --base-url ${{ variables.baseUrl }} --dev-server-target= ${{ variables.spec }}
+        displayName: Run Cypress E2E Tests
+        env:
+          CYPRESS_Auth0TokenUrl: https://$(RiskViewPlatform.Auth.Domain)/oauth/token
+          CYPRESS_Auth0ClientId: $(RiskViewPlatform.Auth.ClientId)
+          CYPRESS_Auth0ClientSecret: $(RiskViewPlatform.Auth.ClientSecret)
+          CYPRESS_RegisteredUserUsername: $(RegisteredUserUsername)
+          CYPRESS_RegisteredUserPassword: $(RegisteredUserPassword)
+      - task: PublishTestResults@2
+        condition: succeededOrFailed()
+        inputs:
+          testRunTitle: Cypress Tests
+          testRunner: JUnit
+          testResultsFiles: '$(System.DefaultWorkingDirectory)/dist/cypress/apps/riskviewpro-e2e/results/test-**.xml'
+          mergeTestResults: true
+      - task: PublishBuildArtifacts@1
+        condition: succeededOrFailed()
+        displayName: Publish Cypress Artifacts
+        inputs:
+          pathToPublish: '$(System.DefaultWorkingDirectory)/dist/cypress/apps/riskviewpro-e2e'
+          artifactName: CypressArtifacts

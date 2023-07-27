@@ -1,0 +1,33 @@
+parameters:
+  - name: deployment
+    displayName: Deployment Name
+    type: string
+  - name: environment
+    displayName: Environment
+    type: string
+  - name: variables
+    displayName: Variables
+    type: object
+    default: ''
+
+jobs:
+  - deployment: ${{ parameters.deployment }}
+    environment: ${{ parameters.environment }}
+    pool:
+      vmImage: ubuntu-latest
+    ${{ if not(eq(parameters.variables, '')) }}:
+      variables: ${{ parameters.variables }}
+    dependsOn: PrepareFiles
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - download: current
+              artifact: $(System.StageName)_WebApp
+            - task: AzureStaticWebApp@0
+              displayName: Deploy content
+              inputs:
+                workingDirectory: '$(Pipeline.Workspace)'
+                app_location: '/$(System.StageName)_WebApp'
+                skip_app_build: true
+                azure_static_web_apps_api_token: '$(deploymentToken)'

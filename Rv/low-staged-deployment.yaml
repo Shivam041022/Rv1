@@ -1,0 +1,71 @@
+trigger: none
+pr: none
+resources:
+  pipelines:
+    - pipeline: MonorepoBuildResources
+      project: UI Monorepo
+      source: MonorepoBuild
+      trigger:
+        branches:
+          - main
+          - release/*
+        tags:
+          - riskview-pro
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Setup
+    jobs:
+      - template: ../../shared/templates/tag-build.yml
+
+  - stage: DeployBVT
+    jobs:
+      - template: ../templates/prepare-files.yml
+        parameters:
+          variableGroup: riskview-pro-ui-bvt
+      - template: ../templates/deployStaticWebApp.yml
+        parameters:
+          deployment: RISKMANAGEMENTBVT_UKS
+          environment: BVT
+          variables:
+            - group: riskview-pro-ui-bvt
+
+  - stage: TestBVT
+    jobs:
+      - template: ../templates/run-cypress-tests.yml
+        parameters:
+          specs: all
+          env: bvt
+
+  - stage: DeployUAT
+    jobs:
+      - template: ../templates/prepare-files.yml
+        parameters:
+          variableGroup: riskview-pro-ui-uat
+      - template: ../templates/deployStaticWebApp.yml
+        parameters:
+          deployment: RISKMANAGEMENTUAT_UKS
+          environment: UAT
+          variables:
+            - group: riskview-pro-ui-uat
+
+  - stage: TestUAT
+    jobs:
+      - template: ../templates/run-cypress-tests.yml
+        parameters:
+          specs: all
+          env: uat
+
+  - stage: DeployPRD
+    jobs:
+      - template: ../templates/prepare-files.yml
+        parameters:
+          variableGroup: riskview-pro-ui-prd
+      - template: ../templates/deployStaticWebApp.yml
+        parameters:
+          deployment: RISKMANAGEMENTPRD_UKS
+          environment: PRD
+          variables:
+            - group: riskview-pro-ui-prd

@@ -1,0 +1,31 @@
+parameters:
+  - name: variableGroup
+    displayName: Variable group to use for token replacement
+    type: string
+
+jobs:
+  - job: PrepareFiles
+    pool:
+      vmImage: 'ubuntu-latest'
+    variables:
+      - group: ${{parameters.variableGroup}}
+    steps:
+      - download: MonorepoBuildResources
+        artifact: AppBuilds
+        displayName: Download Build
+        patterns: |
+          riskview-pro/**/*
+          version.json
+      - script: ls $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/riskview-pro/*
+      - task: qetza.replacetokens.replacetokens-task.replacetokens@3
+        displayName: 'Replace tokens'
+        inputs:
+          targetFiles: |
+            $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/riskview-pro/index.html
+            $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/riskview-pro/staticwebapp.config.json
+          tokenPrefix: '#{'
+          tokenSuffix: '}'
+          variableFiles: $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/version.json
+      - script: cat $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/riskview-pro/index.html
+      - publish: $(Pipeline.Workspace)/MonorepoBuildResources/AppBuilds/riskview-pro
+        artifact: $(System.StageName)_WebApp
