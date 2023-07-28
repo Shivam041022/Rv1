@@ -1,0 +1,18 @@
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '16.14.2'
+    displayName: 'Install Node.js'
+  - task: Cache@2
+    inputs:
+      key: 'node-modules-v2 | "$(Agent.OS)" | package-lock.json'
+      path: $(System.DefaultWorkingDirectory)/node_modules
+      cacheHitVar: NODE_MODULES_CACHE_RESTORED
+    displayName: Cache NPM packages
+  - task: npmAuthenticate@0
+    displayName: Azure NPM Auth
+    inputs:
+      workingFile: .npmrc
+  - script: npm ci
+    displayName: NPM Install
+    condition: ne(variables.NODE_MODULES_CACHE_RESTORED, 'true')

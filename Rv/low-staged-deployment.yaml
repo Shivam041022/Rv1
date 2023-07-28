@@ -18,7 +18,7 @@ pool:
 stages:
   - stage: Setup
     jobs:
-      - template: ../../tag.yml
+      - template: ../../shared/templates/tag-build.yml
 
   - stage: DeployBVT
     jobs:
